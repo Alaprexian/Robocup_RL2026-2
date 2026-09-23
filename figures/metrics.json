@@ -1,0 +1,31 @@
+{
+  "n_episodes": 3500,
+  "seed": 42,
+  "best": "QL | \u03b5 decay",
+  "summaries": {
+    "MC | \u03b5 decay": {
+      "mean_return_last": -62.139206515042844,
+      "mean_steps_last": 71.57,
+      "success_rate_last": 0.16,
+      "success_rate_all": 0.17085714285714285
+    },
+    "MC | \u03b5 fijo=0.1": {
+      "mean_return_last": 136.1558280055068,
+      "mean_steps_last": 30.67,
+      "success_rate_last": 0.98,
+      "success_rate_all": 0.9788571428571429
+    },
+    "QL | \u03b5 decay": {
+      "mean_return_last": 142.8077908836997,
+      "mean_steps_last": 26.55,
+      "success_rate_last": 1.0,
+      "success_rate_all": 0.9477142857142857
+    },
+    "QL | \u03b5 fijo=0.1": {
+      "mean_return_last": 141.25721303816604,
+      "mean_steps_last": 28.3,
+      "success_rate_last": 1.0,
+      "success_rate_all": 0.996
+    }
+  }
+}

@@ -1,0 +1,147 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-tabla,es-noquoting]{babel}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{setspace}
+\usepackage{microtype}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\setstretch{1.15}
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\noindent
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}r@{}}
+    \begin{minipage}{0.25\textwidth}
+        \IfFileExists{logo.png}{\includegraphics[width=\linewidth, height=20mm, keepaspectratio]{logo.png}}{\textbf{UTEC}}
+    \end{minipage}
+    &
+    \begin{minipage}{0.72\textwidth}
+    \begin{flushright}
+         \textbf{DS5345 · Aprendizaje por Refuerzo (2026-II)} \\
+         \textbf{Informe Técnico del Proyecto} \\
+         \small Docente: Percy W. Lovon Ramos
+    \end{flushright}
+    \end{minipage}
+\end{tabular*}
+
+\vspace{-0.2cm}
+\noindent\rule{\textwidth}{0.8pt}
+
+\vspace{0.3cm}
+\begin{center}
+    {\Large \textbf{Baseline Tabular para Intercepción de Balón en RoboCup 2D}} \\[0.2cm]
+    {\large \textbf{Fase 1 (P1)}} \\[0.3cm]
+    \textbf{Grupo: BlueLock} \\[0.1cm]
+    Integrantes: \\
+    Hans Mendoza \\
+    Luis Jáuregui \\[0.2cm]
+    \textit{Repositorio:} \url{https://github.com/Alaprexian/Robocup_RL2026-2}
+\end{center}
+
+\vspace{0.2cm}
+\noindent\rule{\textwidth}{0.4pt}
+
+\begin{abstract}
+Se aborda la intercepción de balón en RoboCup~2D como MDP tabular con observaciones polares discretizadas ($|\mathcal{S}|=20$, $|\mathcal{A}|=4$). Se implementan Monte~Carlo Control On-Policy (First-Visit) y Q-Learning, comparando exploración $\varepsilon$-greedy fija ($\varepsilon=0.1$) frente a decaimiento geométrico. En 3500 episodios sobre un proxy cinemático, Q-Learning alcanza tasa de éxito final del 100\% (últimos 100 episodios) con retorno medio $\approx 143$ y $\approx 27$ pasos; MC con $\varepsilon$ fijo llega al 98\%, mientras que MC con $\varepsilon$ decreciente desde $1.0$ se queda en 16\%, evidenciando la sensibilidad del promedio first-visit a exploración prolongada.
+\end{abstract}
+
+\section{Introducción y Descripción de la Tarea}
+La Fase~1 exige resolver una subtarea acotada antes de escalar a Deep~RL. Seleccionamos \textbf{persecución/intercepción de balón}: el agente debe alcanzar $d_b<0.8\,\mathrm{m}$ (kickable area) desde posiciones aleatorias en su media cancha. El ruido perceptual y la dinámica de \texttt{rcssserver} se abordan en despliegue; el aprendizaje tabular se realiza en un entorno cinemático reproducible ($|\mathcal{A}|$ macros, horizonte 80) compatible con el cliente UDP del starter kit.
+
+\section{Modelado Formal como MDP}
+Tupla $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$:
+
+\begin{itemize}
+    \item \textbf{Estados ($\mathcal{S}$):} observación polar $(d_b,\theta_b)$ discretizada en 4 bins de distancia $\times$ 5 de ángulo $\Rightarrow |\mathcal{S}|=20$.
+    \begin{itemize}
+        \item Distancia: $<0.8$, $[0.8,3)$, $[3,8)$, $\geq 8$\,m.
+        \item Ángulo: frontal $|\theta|\le 15^\circ$; der./izq.\ frontal $\pm[15,60]$; posteriores.
+    \end{itemize}
+    \item \textbf{Acciones ($\mathcal{A}$):} DASH~100, DASH~50, TURN~$+35^\circ$, TURN~$-35^\circ$ ($|\mathcal{A}|=4$).
+    \item \textbf{Transiciones ($\mathcal{P}$):} en el proxy, cinemática determinista; en \texttt{rcssserver}, dinámica estocástica con fricción y ruido sensorial.
+    \item \textbf{Recompensa ($\mathcal{R}$):}
+    \[
+      R =
+      \begin{cases}
+        +100 & d_b < 0.8 \\
+        -20 & \text{timeout} \\
+        -1 + 5\Delta d & \text{en otro caso}
+      \end{cases}
+    \]
+    \item \textbf{Descuento y horizonte:} $\gamma=0.99$, $T_{\max}=80$. Tabla $Q$: $|\mathcal{S}|\cdot|\mathcal{A}|=80$ pares.
+\end{itemize}
+
+\subsection{Justificación analítica de la discretización}
+El umbral $0.8\,\mathrm{m}$ es el radio de kickable area del servidor oficial, por lo que el bin 0 corresponde al estado terminal de éxito. Los cortes $3\,\mathrm{m}$ y $8\,\mathrm{m}$ separan zonas donde un dash fuerte reduce materialmente la distancia en pocos pasos frente a distancias que requieren primero alinear el cuerpo. El cono $\pm 15^\circ$ concentra políticas de avance; $\pm 60^\circ$ distingue giros parciales de giros de búsqueda. Con $|Q|=80$, un presupuesto de $3500$ episodios aporta del orden de decenas de visitas esperadas por par $(s,a)$ bajo exploración moderada, lo que es compatible con métodos tabulares sin explosión combinatoria.
+
+\section{Algoritmos de Aprendizaje}
+\begin{itemize}
+    \item \textbf{Monte Carlo Control On-Policy (First-Visit):} tras cada episodio se actualiza $Q(s,a)$ con el promedio de retornos $G_t$ en la primera visita a $(s,a)$.
+    \item \textbf{Q-Learning (off-policy):}
+    $Q(s,a)\leftarrow Q(s,a)+\alpha[r+\gamma\max_{a'}Q(s',a')-Q(s,a)]$ con $\alpha=0.1$ (terminal: target $=r$).
+    \item \textbf{Exploración:} (i) $\varepsilon$ fijo $=0.1$; (ii) $\varepsilon_k=\max(0.05,\,1.0\cdot 0.998^{k})$.
+\end{itemize}
+
+\section{Resultados Experimentales}
+Cuatro configuraciones, semilla 42, 3500 episodios. Métricas en los últimos 100 episodios:
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{lccc}
+\toprule
+Configuración & Retorno $G_0$ & Pasos & Éxito \\
+\midrule
+MC + $\varepsilon$ decay & $-62.1$ & $71.6$ & $16\%$ \\
+MC + $\varepsilon$ fijo $0.1$ & $136.2$ & $30.7$ & $98\%$ \\
+QL + $\varepsilon$ decay & $142.8$ & $26.6$ & $100\%$ \\
+QL + $\varepsilon$ fijo $0.1$ & $141.3$ & $28.3$ & $100\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Desempeño final (últimos 100 episodios).}
+\end{table}
+
+\IfFileExists{curvas_aprendizaje.png}{%
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.98\textwidth]{curvas_aprendizaje.png}
+    \caption{Retorno suavizado, tasa de éxito temporal (ventana 50) y pasos por episodio.}
+    \label{fig:curvas}
+\end{figure}
+}{}
+
+\IfFileExists{valor_politica.png}{%
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{valor_politica.png}
+    \caption{Mapas de $V^*(s)$ y $\pi^*(s)$ para la mejor configuración (QL + $\varepsilon$ decay).}
+    \label{fig:politica}
+\end{figure}
+}{}
+
+\section{Discusión}
+Q-Learning converge de forma estable bajo ambos esquemas de exploración: el bootstrap reduce la varianza frente al retorno Monte~Carlo completo. MC con $\varepsilon$ fijo aprende una política casi óptima ($98\%$ de éxito), pero MC con decaimiento desde $\varepsilon_0=1$ acumula retornos fallidos early-episode en el promedio first-visit y no se recupera en el horizonte evaluado ($16\%$ de éxito). Esto confirma el requisito del enunciado de comparar empíricamente ambas políticas de exploración. La discretización compacta permite visualizar $\pi^*$ interpretable (girar hasta cono frontal, luego dash fuerte). Limitación: el proxy omite ruido de \texttt{(see)} y dinámica de estamina; la Fase~2 deberá transferir políticas a espacio continuo sobre el servidor real.
+
+\section{Conclusiones}
+Se cumplió el baseline tabular P1: MDP formal, discretización justificada, MC Control y Q-Learning, comparación $\varepsilon$ fijo vs.\ decreciente, y análisis de $G_0$, tasa de éxito y $\pi^*$. El mejor agente (Q-Learning) alcanza intercepción consistente. Próximos pasos (P2): DQN/PPO en estado continuo, reward shaping potencial (Ng et al., 1999) y despliegue competitivo o transferencia.
+
+\begin{thebibliography}{9}
+\bibitem{sutton}
+R. S. Sutton and A. G. Barto, \textit{Reinforcement Learning: An Introduction}, 2nd ed., MIT Press, 2018.
+\bibitem{robocup}
+H. Kitano et al., ``The RoboCup Soccer Server,'' in \textit{RoboCup-97}, Springer, 1998.
+\bibitem{ng1999}
+A. Y. Ng, D. Harada, and S. Russell, ``Policy invariance under reward transformations,'' in \textit{ICML}, 1999.
+\end{thebibliography}
+
+\end{document}
