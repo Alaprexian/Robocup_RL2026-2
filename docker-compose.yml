@@ -1,0 +1,40 @@
+services:
+  rcssserver:
+    image: orangefoil/rcssserver:latest
+    container_name: robocup_server
+    command: rcssserver server::auto_mode=true server::synch_mode=false server::port=6000
+    ports:
+      - "6000:6000/udp"
+    restart: unless-stopped
+    networks:
+      - robocup_net
+
+  rl-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: robocup_rl_agent
+    environment:
+      - SERVER_HOST=rcssserver
+      - SERVER_PORT=6000
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/workspace/src
+    volumes:
+      - ./notebooks:/workspace/notebooks
+      - ./src:/workspace/src
+      - ./scripts:/workspace/scripts
+      - ./figures:/workspace/figures
+      - ./plantilla_informe_latex:/workspace/informe
+      - ./requirements.txt:/workspace/requirements.txt:ro
+    ports:
+      - "8888:8888"
+    depends_on:
+      - rcssserver
+    networks:
+      - robocup_net
+    restart: unless-stopped
+    working_dir: /workspace
+
+networks:
+  robocup_net:
+    driver: bridge
