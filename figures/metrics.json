@@ -4,7 +4,7 @@
   "best": "QL | \u03b5 decay",
   "summaries": {
     "MC | \u03b5 decay": {
-      "mean_return_last": -62.139206515042844,
+      "mean_return_last": -62.13920651504284,
       "mean_steps_last": 71.57,
       "success_rate_last": 0.16,
       "success_rate_all": 0.17085714285714285
@@ -16,7 +16,7 @@
       "success_rate_all": 0.9788571428571429
     },
     "QL | \u03b5 decay": {
-      "mean_return_last": 142.8077908836997,
+      "mean_return_last": 142.80779088369974,
       "mean_steps_last": 26.55,
       "success_rate_last": 1.0,
       "success_rate_all": 0.9477142857142857
