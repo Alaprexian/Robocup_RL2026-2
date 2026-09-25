@@ -1,0 +1,156 @@
+{
+  "n_episodes": 3000,
+  "seed": 42,
+  "rows": [
+    {
+      "label": "stun=3 (hist\u00f3rico)",
+      "stun": 3,
+      "speed_base": 0.18,
+      "speed_jitter": 0.1,
+      "MC": {
+        "mean_return_last": 337.30899999999997,
+        "mean_steps_last": 50.92,
+        "success_rate_last": 0.97,
+        "success_rate_all": 0.9283333333333333,
+        "mean_passes_last": 15.62,
+        "mean_possession_last": 50.89,
+        "algo": "MC",
+        "stun": 3,
+        "speed_base": 0.18,
+        "speed_jitter": 0.1
+      },
+      "QL": {
+        "mean_return_last": 452.97299999999973,
+        "mean_steps_last": 53.97,
+        "success_rate_last": 0.85,
+        "success_rate_all": 0.852,
+        "mean_passes_last": 33.11,
+        "mean_possession_last": 53.84,
+        "algo": "QL",
+        "stun": 3,
+        "speed_base": 0.18,
+        "speed_jitter": 0.1
+      }
+    },
+    {
+      "label": "stun=1",
+      "stun": 1,
+      "speed_base": 0.18,
+      "speed_jitter": 0.1,
+      "MC": {
+        "mean_return_last": 340.99899999999985,
+        "mean_steps_last": 50.25,
+        "success_rate_last": 0.97,
+        "success_rate_all": 0.896,
+        "mean_passes_last": 16.94,
+        "mean_possession_last": 50.22,
+        "algo": "MC",
+        "stun": 1,
+        "speed_base": 0.18,
+        "speed_jitter": 0.1
+      },
+      "QL": {
+        "mean_return_last": 480.75399999999973,
+        "mean_steps_last": 52.38,
+        "success_rate_last": 0.9,
+        "success_rate_all": 0.851,
+        "mean_passes_last": 35.98,
+        "mean_possession_last": 52.3,
+        "algo": "QL",
+        "stun": 1,
+        "speed_base": 0.18,
+        "speed_jitter": 0.1
+      }
+    },
+    {
+      "label": "stun=0 (adoptado)",
+      "stun": 0,
+      "speed_base": 0.18,
+      "speed_jitter": 0.1,
+      "MC": {
+        "mean_return_last": 318.39999999999986,
+        "mean_steps_last": 51.22,
+        "success_rate_last": 0.93,
+        "success_rate_all": 0.871,
+        "mean_passes_last": 13.99,
+        "mean_possession_last": 51.17,
+        "algo": "MC",
+        "stun": 0,
+        "speed_base": 0.18,
+        "speed_jitter": 0.1
+      },
+      "QL": {
+        "mean_return_last": 370.2369999999999,
+        "mean_steps_last": 55.54,
+        "success_rate_last": 0.81,
+        "success_rate_all": 0.7846666666666666,
+        "mean_passes_last": 23.24,
+        "mean_possession_last": 55.39,
+        "algo": "QL",
+        "stun": 0,
+        "speed_base": 0.18,
+        "speed_jitter": 0.1
+      }
+    },
+    {
+      "label": "stun=0, v+25%",
+      "stun": 0,
+      "speed_base": 0.225,
+      "speed_jitter": 0.125,
+      "MC": {
+        "mean_return_last": 323.5359999999999,
+        "mean_steps_last": 52.4,
+        "success_rate_last": 0.77,
+        "success_rate_all": 0.771,
+        "mean_passes_last": 17.62,
+        "mean_possession_last": 52.21,
+        "algo": "MC",
+        "stun": 0,
+        "speed_base": 0.225,
+        "speed_jitter": 0.125
+      },
+      "QL": {
+        "mean_return_last": 317.42799999999994,
+        "mean_steps_last": 55.15,
+        "success_rate_last": 0.65,
+        "success_rate_all": 0.731,
+        "mean_passes_last": 19.01,
+        "mean_possession_last": 54.88,
+        "algo": "QL",
+        "stun": 0,
+        "speed_base": 0.225,
+        "speed_jitter": 0.125
+      }
+    },
+    {
+      "label": "stun=0, v+50%",
+      "stun": 0,
+      "speed_base": 0.27,
+      "speed_jitter": 0.15,
+      "MC": {
+        "mean_return_last": 287.2299999999999,
+        "mean_steps_last": 52.18,
+        "success_rate_last": 0.76,
+        "success_rate_all": 0.7553333333333333,
+        "mean_passes_last": 13.78,
+        "mean_possession_last": 51.98,
+        "algo": "MC",
+        "stun": 0,
+        "speed_base": 0.27,
+        "speed_jitter": 0.15
+      },
+      "QL": {
+        "mean_return_last": 403.37899999999973,
+        "mean_steps_last": 52.26,
+        "success_rate_last": 0.72,
+        "success_rate_all": 0.617,
+        "mean_passes_last": 29.53,
+        "mean_possession_last": 52.0,
+        "algo": "QL",
+        "stun": 0,
+        "speed_base": 0.27,
+        "speed_jitter": 0.15
+      }
+    }
+  ]
+}

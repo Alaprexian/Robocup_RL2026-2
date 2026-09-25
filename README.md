@@ -12,23 +12,26 @@
 ```text
 .
 ├── docker/                  # Dockerfile (+ compose de referencia)
-├── src/                     # Código modular (env, discretizer, agentes, cliente)
-│   ├── agents/              # MC Control + Q-Learning
-│   ├── env.py
+├── src/                     # Código modular
+│   ├── agents/              # MC Control + Q-Learning (agnósticos al env)
+│   ├── envs/                # 4 tareas P1 (pursuit, dribbling, shooting, passing)
+│   ├── env.py               # Reexport BallPursuitSimEnv
 │   ├── discretizer.py
 │   ├── metrics.py
 │   ├── plotting.py
 │   └── robocup_client.py
 ├── notebooks/
-│   ├── p1_baseline_tabular.ipynb          # Entrega P1 (experimentos)
+│   ├── p1_four_tasks.ipynb               # Catálogo completo (4 tareas)
+│   ├── p1_baseline_tabular.ipynb         # Baseline pursuit
 │   ├── tutorial_primer_paso.ipynb
-│   └── agente_cero_mc_control_persecucion.ipynb  # Baseline original
+│   └── agente_cero_mc_control_persecucion.ipynb
 ├── scripts/
+│   ├── run_all_tasks.py     # Entrena las 4 tareas + exporta figuras
 │   ├── run_p1_experiments.py
 │   └── test_random_agent.py
-├── figures/                 # Curvas y métricas exportadas
+├── figures/                 # Curvas globales + figures/tasks/<tarea>/
 ├── plantilla_informe_latex/ # Informe LaTeX P1
-├── docker-compose.yml       # Orquestación (usar desde la raíz)
+├── docker-compose.yml
 ├── requirements.txt
 └── README.md
 ```
@@ -49,13 +52,19 @@ Smoke test de conexión:
 docker compose exec rl-agent python /workspace/scripts/test_random_agent.py
 ```
 
-Experimentos P1 (sin Jupyter):
+Experimentos P1 — las 4 tareas:
+
+```bash
+docker compose exec rl-agent python /workspace/scripts/run_all_tasks.py
+```
+
+Solo persecución (legacy):
 
 ```bash
 docker compose exec rl-agent python /workspace/scripts/run_p1_experiments.py
 ```
 
-Cuaderno principal: `notebooks/p1_baseline_tabular.ipynb`.
+Cuaderno principal del catálogo: `notebooks/p1_four_tasks.ipynb`.
 
 ---
 
@@ -63,13 +72,20 @@ Cuaderno principal: `notebooks/p1_baseline_tabular.ipynb`.
 
 | Requisito P1 | Estado |
 | :--- | :--- |
-| MDP formal ⟨S,A,P,R,γ⟩ + discretización justificada | Sí (`src/`, informe) |
+| MDP formal ⟨S,A,P,R,γ⟩ + discretización | Sí (4 tareas en `src/envs/`) |
 | Monte Carlo Control First-Visit | Sí |
 | Segundo algoritmo tabular (Q-Learning) | Sí |
-| Comparación ε fijo vs ε decreciente | Sí (4 configs) |
-| Curvas G₀, tasa de éxito, pasos, V*/π* | Sí |
+| Comparación ε fijo vs ε decreciente | Sí (4 configs × tarea) |
+| Curvas G₀, tasa de éxito, pasos, trayectorias | Sí (`figures/tasks/`) |
 | Cliente UDP + Docker | Sí |
-| Informe LaTeX | `plantilla_informe_latex/` → compilar a `informe_p1.pdf` |
+| Informe LaTeX | `plantilla_informe_latex/` |
+
+### Tareas del catálogo
+
+1. **Pursuit** — intercepción con \(d_b \in [5,40]\) m  
+2. **Dribbling** — avance >30 m con posesión  
+3. **Shooting** — tiro con/sin portero (eval separada)  
+4. **Passing** — 2v1, ≥3 pases y posesión ≥50 pasos  
 
 ---
 

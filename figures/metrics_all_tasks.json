@@ -1,0 +1,146 @@
+{
+  "n_episodes": 3500,
+  "seed": 42,
+  "tasks": {
+    "pursuit": {
+      "best": "QL | \u03b5 decay",
+      "summaries": {
+        "MC | \u03b5 decay": {
+          "mean_return_last": 148.8306755025621,
+          "mean_steps_last": 38.35,
+          "success_rate_last": 0.95,
+          "success_rate_all": 0.9154285714285715
+        },
+        "MC | \u03b5 fijo=0.1": {
+          "mean_return_last": 21.016015436358572,
+          "mean_steps_last": 80.0,
+          "success_rate_last": 0.53,
+          "success_rate_all": 0.4145714285714286
+        },
+        "QL | \u03b5 decay": {
+          "mean_return_last": 166.09988928453993,
+          "mean_steps_last": 31.36,
+          "success_rate_last": 1.0,
+          "success_rate_all": 0.948
+        },
+        "QL | \u03b5 fijo=0.1": {
+          "mean_return_last": 157.73410155555734,
+          "mean_steps_last": 41.12,
+          "success_rate_last": 1.0,
+          "success_rate_all": 0.9857142857142858
+        }
+      }
+    },
+    "dribbling": {
+      "best": "QL | \u03b5 decay",
+      "summaries": {
+        "MC | \u03b5 decay": {
+          "mean_return_last": 162.0070609635456,
+          "mean_steps_last": 41.94,
+          "success_rate_last": 0.98,
+          "success_rate_all": 0.8665714285714285,
+          "mean_advance_last": 30.239522788088816
+        },
+        "MC | \u03b5 fijo=0.1": {
+          "mean_return_last": 157.02331467842464,
+          "mean_steps_last": 67.82,
+          "success_rate_last": 0.99,
+          "success_rate_all": 0.9685714285714285,
+          "mean_advance_last": 30.092519359980066
+        },
+        "QL | \u03b5 decay": {
+          "mean_return_last": 166.38125476701705,
+          "mean_steps_last": 38.81,
+          "success_rate_last": 1.0,
+          "success_rate_all": 0.8908571428571429,
+          "mean_advance_last": 30.422095476956862
+        },
+        "QL | \u03b5 fijo=0.1": {
+          "mean_return_last": 165.12891447632057,
+          "mean_steps_last": 44.42,
+          "success_rate_last": 1.0,
+          "success_rate_all": 0.9854285714285714,
+          "mean_advance_last": 30.4180195874424
+        }
+      }
+    },
+    "shooting": {
+      "best": "MC | \u03b5 fijo=0.1",
+      "summaries": {
+        "MC | \u03b5 decay": {
+          "mean_return_last": 83.88,
+          "mean_steps_last": 1.17,
+          "success_rate_last": 0.85,
+          "success_rate_all": 0.8648571428571429,
+          "success_open_goal_last": 0.9090909090909091,
+          "success_with_gk_last": 0.7777777777777778
+        },
+        "MC | \u03b5 fijo=0.1": {
+          "mean_return_last": 86.49600000000001,
+          "mean_steps_last": 1.3,
+          "success_rate_last": 0.87,
+          "success_rate_all": 0.8574285714285714,
+          "success_open_goal_last": 0.9433962264150944,
+          "success_with_gk_last": 0.7872340425531915
+        },
+        "QL | \u03b5 decay": {
+          "mean_return_last": 82.156,
+          "mean_steps_last": 1.07,
+          "success_rate_last": 0.84,
+          "success_rate_all": 0.8548571428571429,
+          "success_open_goal_last": 0.9259259259259259,
+          "success_with_gk_last": 0.7391304347826086
+        },
+        "QL | \u03b5 fijo=0.1": {
+          "mean_return_last": 80.15799999999999,
+          "mean_steps_last": 1.45,
+          "success_rate_last": 0.82,
+          "success_rate_all": 0.7934285714285715,
+          "success_open_goal_last": 0.9245283018867925,
+          "success_with_gk_last": 0.7021276595744681
+        }
+      },
+      "eval_split": {
+        "success_open_goal": 0.98,
+        "success_with_gk": 0.83
+      }
+    },
+    "passing": {
+      "best": "MC | \u03b5 fijo=0.1",
+      "summaries": {
+        "MC | \u03b5 decay": {
+          "mean_return_last": 333.79099999999994,
+          "mean_steps_last": 51.78,
+          "success_rate_last": 0.91,
+          "success_rate_all": 0.8482857142857143,
+          "mean_passes_last": 15.19,
+          "mean_possession_last": 51.71
+        },
+        "MC | \u03b5 fijo=0.1": {
+          "mean_return_last": 306.80899999999986,
+          "mean_steps_last": 51.94,
+          "success_rate_last": 0.93,
+          "success_rate_all": 0.8748571428571429,
+          "mean_passes_last": 12.79,
+          "mean_possession_last": 51.9
+        },
+        "QL | \u03b5 decay": {
+          "mean_return_last": 423.1019999999998,
+          "mean_steps_last": 55.41,
+          "success_rate_last": 0.75,
+          "success_rate_all": 0.8045714285714286,
+          "mean_passes_last": 30.56,
+          "mean_possession_last": 55.21
+        },
+        "QL | \u03b5 fijo=0.1": {
+          "mean_return_last": 411.8309999999998,
+          "mean_steps_last": 55.42,
+          "success_rate_last": 0.77,
+          "success_rate_all": 0.7902857142857143,
+          "mean_passes_last": 28.76,
+          "mean_possession_last": 55.27
+        }
+      }
+    }
+  }
+}

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Hashable
 
 import numpy as np
 
 from discretizer import N_ACTIONS
 
-State = Tuple[int, int]
-QTable = Dict[State, np.ndarray]
+QTable = Dict[Hashable, np.ndarray]
 
 
 def epsilon_schedule(
@@ -32,14 +31,24 @@ def epsilon_schedule(
     raise ValueError(f"modo de exploración desconocido: {mode}")
 
 
-def select_action(Q: QTable, state: State, eps: float, rng: np.random.Generator) -> int:
+def select_action(
+    Q: QTable,
+    state: Hashable,
+    eps: float,
+    rng: np.random.Generator,
+    n_actions: int = N_ACTIONS,
+) -> int:
     if rng.random() < eps:
-        return int(rng.integers(0, N_ACTIONS))
+        return int(rng.integers(0, n_actions))
     q_vals = Q[state]
     if np.allclose(q_vals, q_vals[0]):
-        return int(rng.integers(0, N_ACTIONS))
+        return int(rng.integers(0, n_actions))
     return int(np.argmax(q_vals))
 
 
 def make_empty_q(n_actions: int = N_ACTIONS) -> Callable[[], np.ndarray]:
     return lambda: np.zeros(n_actions, dtype=np.float64)
+
+
+def get_n_actions(env: Any, default: int = N_ACTIONS) -> int:
+    return int(getattr(env, "n_actions", default))

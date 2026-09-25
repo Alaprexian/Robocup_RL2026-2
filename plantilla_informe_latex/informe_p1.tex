@@ -11,19 +11,20 @@
 \usepackage{hyperref}
 \usepackage{setspace}
 \usepackage{microtype}
-\usepackage{listings}
-\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{placeins}
 
-\setstretch{1.15}
-\setlength{\parskip}{0.5em}
+\setstretch{1.12}
+\setlength{\parskip}{0.45em}
 \setlength{\parindent}{0pt}
+\graphicspath{{./}}
 
 \begin{document}
 
 \noindent
 \begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}r@{}}
     \begin{minipage}{0.25\textwidth}
-        \IfFileExists{logo.png}{\includegraphics[width=\linewidth, height=20mm, keepaspectratio]{logo.png}}{\textbf{UTEC}}
+        \IfFileExists{logo.png}{\includegraphics[width=\linewidth, height=18mm, keepaspectratio]{logo.png}}{\textbf{UTEC}}
     \end{minipage}
     &
     \begin{minipage}{0.72\textwidth}
@@ -35,105 +36,318 @@
     \end{minipage}
 \end{tabular*}
 
-\vspace{-0.2cm}
+\vspace{-0.15cm}
 \noindent\rule{\textwidth}{0.8pt}
 
-\vspace{0.3cm}
+\vspace{0.25cm}
 \begin{center}
-    {\Large \textbf{Baseline Tabular para Intercepción de Balón en RoboCup 2D}} \\[0.2cm]
-    {\large \textbf{Fase 1 (P1)}} \\[0.3cm]
-    \textbf{Grupo: BlueLock} \\[0.1cm]
-    Integrantes: \\
-    Hans Mendoza \\
-    Luis Jáuregui \\[0.2cm]
-    \textit{Repositorio:} \url{https://github.com/Alaprexian/Robocup_RL2026-2}
+    {\Large \textbf{Baseline Tabular para Habilidades de Fútbol en RoboCup 2D}} \\[0.15cm]
+    {\large Fase 1 (P1): catálogo de tareas acotadas} \\[0.25cm]
+    \textbf{Grupo BlueLock} \\[0.08cm]
+    Hans Mendoza \textperiodcentered Luis Jáuregui \\[0.12cm]
+    {\small \url{https://github.com/Alaprexian/Robocup_RL2026-2}}
 \end{center}
 
-\vspace{0.2cm}
+\vspace{0.1cm}
 \noindent\rule{\textwidth}{0.4pt}
 
 \begin{abstract}
-Se aborda la intercepción de balón en RoboCup~2D como MDP tabular con observaciones polares discretizadas ($|\mathcal{S}|=20$, $|\mathcal{A}|=4$). Se implementan Monte~Carlo Control On-Policy (First-Visit) y Q-Learning, comparando exploración $\varepsilon$-greedy fija ($\varepsilon=0.1$) frente a decaimiento geométrico. En 3500 episodios sobre un proxy cinemático, Q-Learning alcanza tasa de éxito final del 100\% (últimos 100 episodios) con retorno medio $\approx 143$ y $\approx 27$ pasos; MC con $\varepsilon$ fijo llega al 98\%, mientras que MC con $\varepsilon$ decreciente desde $1.0$ se queda en 16\%, evidenciando la sensibilidad del promedio first-visit a exploración prolongada.
+En lugar de abordar directamente un partido 11\,vs\,11, el enunciado propone comenzar por habilidades individuales.
+Modelamos las cuatro tareas del catálogo---persecución, drible, tiro y pase~2v1---como MDPs tabulares sobre un proxy cinemático, con discretización polar alineada al radio kickable de \texttt{rcssserver}, y comparamos Monte~Carlo Control y Q-Learning bajo $\varepsilon$ fijo frente a $\varepsilon$ decreciente (3500 episodios por configuración).
+Tras ajustar el tiro (alineación multi-paso) y el pase (recompensa anclada a posesión), las cuatro tareas alcanzan los criterios de éxito del enunciado en su mejor configuración.
 \end{abstract}
 
-\section{Introducción y Descripción de la Tarea}
-La Fase~1 exige resolver una subtarea acotada antes de escalar a Deep~RL. Seleccionamos \textbf{persecución/intercepción de balón}: el agente debe alcanzar $d_b<0.8\,\mathrm{m}$ (kickable area) desde posiciones aleatorias en su media cancha. El ruido perceptual y la dinámica de \texttt{rcssserver} se abordan en despliegue; el aprendizaje tabular se realiza en un entorno cinemático reproducible ($|\mathcal{A}|$ macros, horizonte 80) compatible con el cliente UDP del starter kit.
+\section{Por qué este problema y cómo lo atacamos}
+RoboCup~2D es un POMDP ruidoso y competitivo: aprender ``jugar fútbol'' de cero con métodos tabulares hace explotar el espacio.
+El curso propone aislar subtareas controlables, visualizar qué aprende el agente y recién después escalar a Deep~RL.
 
-\section{Modelado Formal como MDP}
-Tupla $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$:
+Trabajamos en Python dentro del stack Docker del starter kit, con entornos en \texttt{src/envs/} que imitan dash, giro, kick y pase sin pagar el costo de \texttt{rcssserver} en cada update de $Q$.
+El proxy no reemplaza al servidor oficial (sigue siendo el destino de despliegue), pero permite experimentos reproducibles (semilla~42) y comparación justa entre algoritmos.
+Los agentes (\texttt{src/agents/}) son agnósticos al tamaño de $\mathcal{A}$: leen \texttt{env.n\_actions} y guardan $Q$ indexada por estados hashables.
 
+\section{Discretización y formalización de las tareas}
+En todas usamos $\gamma=0.99$ y políticas $\varepsilon$-greedy.
+
+\subsection{Discretización polar}
+Para que $Q(s,a)$ sea tabular, convertimos observaciones continuas (distancia y ángulo relativo) en \emph{bins}.
+El esquema compartido vive en \texttt{src/discretizer.py} y replica convenciones de RoboCup~2D:
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}clp{7.2cm}@{}}
+\toprule
+Bin & Rango / significado & Motivación \\
+\midrule
+Dist.\ 0 & $d<0.8$\,m & Radio \textbf{kickable} de \texttt{rcssserver} \\
+Dist.\ 1 & $[0.8,3)$\,m & Reacción cercana \\
+Dist.\ 2 & $[3,8)$\,m & Media \\
+Dist.\ 3 & $d\ge 8$\,m & Lejana \\
+\midrule
+Áng.\ 0 & $|\theta|\le 15^\circ$ & Cono frontal de dash efectivo \\
+Áng.\ 1--2 & hasta $\pm 60^\circ$ & Giro parcial \\
+Áng.\ 3--4 & posterior & Giro completo \\
+\bottomrule
+\end{tabular}
+\caption{Bins polares compartidos. En persecución pura: $|\mathcal{S}|=4\times 5=20$. Las demás tareas extienden el estado con bins adicionales (meta, portero, compañero, posesión).}
+\end{table}
+
+Las tuplas de estado discretas que indexan $Q(s,a)$ en cada tarea son:
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}llp{6.4cm}@{}}
+\toprule
+Tarea & Tupla $s$ & Componentes \\
+\midrule
+Pursuit & $(d_b,\,a_b)$ & Dist.\ y ángulo al balón (bins polares) \\
+Dribbling & $(d_b,\,a_b,\,d_g,\,a_g)$ & Balón + meta rival (bins) \\
+Shooting & $(d_g,\,b,\,g_k,\,f)$ & Dist.\ arco, sector corporal, bin GK, \texttt{facing\_ok} \\
+Passing & $(d_c,\,a_c,\,d_d,\,a_d,\,h)$ & Compañero, defensor, posesión $h\in\{0,1\}$ \\
+\bottomrule
+\end{tabular}
+\caption{Estado tabular por tarea (todos los campos son enteros de bins, salvo $h$ binario).}
+\end{table}
+
+\subsection{Persecución e intercepción}
+El agente nace con $d_b\in[5,40]$\,m (enunciado) y orientación aleatoria.
+Estado $s=(d_b,\,a_b)$ con $|\mathcal{S}|=20$; acciones: DASH fuerte/suave ($+1.2$\,/\,$+0.6$\,m) o giro $\pm 35^\circ$; horizonte $T_{\max}=120$.
+La recompensa por paso combina costo temporal y \emph{término de acercamiento}:
+\[
+R_t = -1 + 5\bigl(d_{t-1}-d_t\bigr),
+\]
+con terminal $+100$ si $d_b<0.8$\,m y $-20$ por timeout.
+Así se empuja a capturas cortas y se da señal densa cuando aún no hay gol de captura.
+
+\subsection{Drible}
+Estado $s=(d_b,\,a_b,\,d_g,\,a_g)$: relación al balón y a la meta rival, ambos discretizados.
+Acciones: micro-pateo, carrera y giros.
+Éxito: avance neto $\ge 30$\,m con posesión vigente; fallo si sale de cancha o pierde el balón varios pasos.
+Implementación: en dash cerca del balón, el proxy ``pega'' la pelota delante del jugador ($\approx 0.55$\,m), aproximando posesión sin física completa de rebote.
+
+\subsection{Tiro a puerta}
+Estado $s=(d_g,\,b,\,g_k,\,f)$: distancia al arco, sector del cuerpo, bin del portero (0\,=\,abierto) y $f=\texttt{facing\_ok}$ ($|a_g|\le 20^\circ$).
+Acciones: giros (no terminan el episodio) y cinco sectores de disparo; horizonte corto ($T_{\max}=8$).
+Los postes usan la escala RoboCup~2D ($\pm 7.01$\,m).
+Entrenamiento mixto 50/50 con/sin arquero; evaluación greedy separada (umbrales $>75\%$ abierto, $>50\%$ con portero).
+El ruido del tiro crece si el cuerpo está mal alineado: de ahí la necesidad de alinear antes de patear.
+
+\subsection{Pase y posesión 2v1}
+Atacante + compañero vs defensor \emph{estocástico} (persigue el balón con velocidad aleatoria).
+Estado $s=(d_c,\,a_c,\,d_d,\,a_d,\,h)$: distancia/ángulo al compañero y al defensor (bins polares) y $h=1$ si el atacante controla el balón.
+Macros: pase, drible, giro y \texttt{ALEJARSE}.
+Éxito conjunto: posesión $\ge 50$ pasos \emph{y} $\ge 3$ pases.
+Detalles: pase moderado (no $+30$), posesión densa ($+1.2$/paso) y \texttt{ALEJARSE}.
+El stun post-pase es opcional (parámetro \texttt{defender\_stun\_on\_pass}; por defecto $0$ tras ablación).
+
+\section{Qué entrenamos}
+Cuatro configuraciones por tarea:
 \begin{itemize}
-    \item \textbf{Estados ($\mathcal{S}$):} observación polar $(d_b,\theta_b)$ discretizada en 4 bins de distancia $\times$ 5 de ángulo $\Rightarrow |\mathcal{S}|=20$.
-    \begin{itemize}
-        \item Distancia: $<0.8$, $[0.8,3)$, $[3,8)$, $\geq 8$\,m.
-        \item Ángulo: frontal $|\theta|\le 15^\circ$; der./izq.\ frontal $\pm[15,60]$; posteriores.
-    \end{itemize}
-    \item \textbf{Acciones ($\mathcal{A}$):} DASH~100, DASH~50, TURN~$+35^\circ$, TURN~$-35^\circ$ ($|\mathcal{A}|=4$).
-    \item \textbf{Transiciones ($\mathcal{P}$):} en el proxy, cinemática determinista; en \texttt{rcssserver}, dinámica estocástica con fricción y ruido sensorial.
-    \item \textbf{Recompensa ($\mathcal{R}$):}
-    \[
-      R =
-      \begin{cases}
-        +100 & d_b < 0.8 \\
-        -20 & \text{timeout} \\
-        -1 + 5\Delta d & \text{en otro caso}
-      \end{cases}
-    \]
-    \item \textbf{Descuento y horizonte:} $\gamma=0.99$, $T_{\max}=80$. Tabla $Q$: $|\mathcal{S}|\cdot|\mathcal{A}|=80$ pares.
+    \item Monte~Carlo Control On-Policy (First-Visit) con $\varepsilon=0.1$ fijo
+          y con $\varepsilon_k=\max(0.05,\,1.0\cdot 0.998^{k})$.
+    \item Q-Learning ($\alpha=0.1$) con los mismos esquemas de exploración.
 \end{itemize}
+\texttt{run\_all\_tasks.py} exporta curvas, trays y métricas.
+\texttt{generate\_tray\_sets.py} produce variantes exitosas con distintas semillas
+(para no depender de un único episodio ``afortunado'').
 
-\subsection{Justificación analítica de la discretización}
-El umbral $0.8\,\mathrm{m}$ es el radio de kickable area del servidor oficial, por lo que el bin 0 corresponde al estado terminal de éxito. Los cortes $3\,\mathrm{m}$ y $8\,\mathrm{m}$ separan zonas donde un dash fuerte reduce materialmente la distancia en pocos pasos frente a distancias que requieren primero alinear el cuerpo. El cono $\pm 15^\circ$ concentra políticas de avance; $\pm 60^\circ$ distingue giros parciales de giros de búsqueda. Con $|Q|=80$, un presupuesto de $3500$ episodios aporta del orden de decenas de visitas esperadas por par $(s,a)$ bajo exploración moderada, lo que es compatible con métodos tabulares sin explosión combinatoria.
+\section{Resultados: panorama}
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}llp{5.2cm}@{}}
+\toprule
+Tarea & Mejor corrida & Qué observamos \\
+\midrule
+Pursuit & QL + $\varepsilon$ decay ($100\%$) & $\approx 31$ pasos \\
+Dribbling & QL + $\varepsilon$ decay ($100\%$) & Umbral 30\,m \\
+Shooting & MC + $\varepsilon$ fijo & Open $98\%$ / GK $83\%$ \\
+Passing & MC + $\varepsilon$ fijo ($93\%$) & Pos.\ $\approx 51$, stun$=0$ \\
+\bottomrule
+\end{tabular}
+\caption{Mejor configuración por tarea (últimos 100 episodios; tiro con eval greedy separada).}
+\end{table}
 
-\section{Algoritmos de Aprendizaje}
-\begin{itemize}
-    \item \textbf{Monte Carlo Control On-Policy (First-Visit):} tras cada episodio se actualiza $Q(s,a)$ con el promedio de retornos $G_t$ en la primera visita a $(s,a)$.
-    \item \textbf{Q-Learning (off-policy):}
-    $Q(s,a)\leftarrow Q(s,a)+\alpha[r+\gamma\max_{a'}Q(s',a')-Q(s,a)]$ con $\alpha=0.1$ (terminal: target $=r$).
-    \item \textbf{Exploración:} (i) $\varepsilon$ fijo $=0.1$; (ii) $\varepsilon_k=\max(0.05,\,1.0\cdot 0.998^{k})$.
-\end{itemize}
+Tiro y pase fueron los que más dependieron de alinear $R$ (y la dinámica) al criterio del enunciado, no solo de subir $G_0$.
 
-\section{Resultados Experimentales}
-Cuatro configuraciones, semilla 42, 3500 episodios. Métricas en los últimos 100 episodios:
-
+\FloatBarrier
+\section{Zoom en persecución}
 \begin{table}[htbp]
 \centering
 \begin{tabular}{lccc}
 \toprule
 Configuración & Retorno $G_0$ & Pasos & Éxito \\
 \midrule
-MC + $\varepsilon$ decay & $-62.1$ & $71.6$ & $16\%$ \\
-MC + $\varepsilon$ fijo $0.1$ & $136.2$ & $30.7$ & $98\%$ \\
-QL + $\varepsilon$ decay & $142.8$ & $26.6$ & $100\%$ \\
-QL + $\varepsilon$ fijo $0.1$ & $141.3$ & $28.3$ & $100\%$ \\
+MC + $\varepsilon$ decay & $148.8$ & $38.4$ & $95\%$ \\
+MC + $\varepsilon$ fijo $0.1$ & $21.0$ & $80.0$ & $53\%$ \\
+QL + $\varepsilon$ decay & $166.1$ & $31.4$ & $100\%$ \\
+QL + $\varepsilon$ fijo $0.1$ & $157.7$ & $41.1$ & $100\%$ \\
 \bottomrule
 \end{tabular}
-\caption{Desempeño final (últimos 100 episodios).}
+\caption{Pursuit con $d_b\in[5,40]$\,m (últimos 100 episodios).}
 \end{table}
 
-\IfFileExists{curvas_aprendizaje.png}{%
+Con distancias iniciales largas, MC + $\varepsilon$ fijo queda corto: first-visit promedia retornos muy distintos (timeout vs captura) y, si la exploración no se apaga, ``ensucia'' pares $(s,a)$.
+Q-Learning, al bootstrappear, es más robusto aquí.
+
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.98\textwidth]{curvas_aprendizaje.png}
-    \caption{Retorno suavizado, tasa de éxito temporal (ventana 50) y pasos por episodio.}
-    \label{fig:curvas}
+    \includegraphics[width=\textwidth]{fig_pursuit_curvas.png}
+    \caption{Pursuit---aprendizaje: $G_0$, tasa de éxito y pasos (MA-50).}
+    \label{fig:pursuit-curvas}
 \end{figure}
-}{}
 
-\IfFileExists{valor_politica.png}{%
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.85\textwidth]{valor_politica.png}
-    \caption{Mapas de $V^*(s)$ y $\pi^*(s)$ para la mejor configuración (QL + $\varepsilon$ decay).}
-    \label{fig:politica}
+    \begin{subfigure}[t]{0.52\textwidth}
+        \includegraphics[width=\linewidth]{fig_pursuit_politica.png}
+        \caption{$V^*$ y $\pi^*$ (mejor config.)}
+        \label{fig:pursuit-pi}
+    \end{subfigure}\hfill
+    \begin{subfigure}[t]{0.46\textwidth}
+        \includegraphics[width=\linewidth]{fig_pursuit_tray.png}
+        \caption{Trayectoria greedy canónica}
+        \label{fig:pursuit-tray}
+    \end{subfigure}
+    \caption{Pursuit---política tabular y un episodio greedy típico (``alinear y empujar'').}
+    \label{fig:pursuit-viz}
 \end{figure}
-}{}
 
-\section{Discusión}
-Q-Learning converge de forma estable bajo ambos esquemas de exploración: el bootstrap reduce la varianza frente al retorno Monte~Carlo completo. MC con $\varepsilon$ fijo aprende una política casi óptima ($98\%$ de éxito), pero MC con decaimiento desde $\varepsilon_0=1$ acumula retornos fallidos early-episode en el promedio first-visit y no se recupera en el horizonte evaluado ($16\%$ de éxito). Esto confirma el requisito del enunciado de comparar empíricamente ambas políticas de exploración. La discretización compacta permite visualizar $\pi^*$ interpretable (girar hasta cono frontal, luego dash fuerte). Limitación: el proxy omite ruido de \texttt{(see)} y dinámica de estamina; la Fase~2 deberá transferir políticas a espacio continuo sobre el servidor real.
+\FloatBarrier
+\section{Drible}
+El shaping (acercarse a la meta + castigo por perder posesión) basta para una política estable; dash con balón cerca rinde más que patadas fuertes.
 
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{fig_dribbling_curvas.png}
+    \caption{Drible---aprendizaje: las cuatro configs terminan altas; QL+$\varepsilon$ decay es la más ágil ($\approx 39$ pasos, $100\%$).}
+    \label{fig:drib-curvas}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.38\textwidth}
+        \includegraphics[width=\linewidth]{fig_dribbling_tray.png}
+        \caption*{Canónica}
+    \end{subfigure}\hfill
+    \begin{subfigure}[t]{0.28\textwidth}
+        \includegraphics[width=\linewidth]{set_dribbling_01.png}
+        \caption*{Seed 59}
+    \end{subfigure}\hfill
+    \begin{subfigure}[t]{0.28\textwidth}
+        \includegraphics[width=\linewidth]{set_dribbling_02.png}
+        \caption*{Seed 26}
+    \end{subfigure}
+    \caption{Drible---trayectorias greedy (avance $>30$\,m con posesión).}
+    \label{fig:drib-viz}
+\end{figure}
+
+\FloatBarrier
+\section{Tiro}
+El cambio clave fue permitir alineación antes del disparo.
+MC + $\varepsilon$ fijo alcanza $98\%$ abierto y $83\%$ con portero en eval greedy (umbrales $75\%/50\%$).
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{fig_shooting_curvas.png}
+    \caption{Tiro---aprendizaje bajo mixto open/GK (episodios cortos: alinear y patear).}
+    \label{fig:shot-curvas}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth}
+        \includegraphics[width=\linewidth]{fig_shooting_tray.png}
+        \caption*{Arco abierto}
+    \end{subfigure}\hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \includegraphics[width=\linewidth]{fig_shooting_tray_gk.png}
+        \caption*{Con portero}
+    \end{subfigure}
+    \caption{Tiro---trayectorias greedy canónicas (open / GK).}
+    \label{fig:shot-viz}
+\end{figure}
+
+\FloatBarrier
+\section{Pase 2v1}
+Premiar cada pase con $+30$ inflaba $G_0$ pero no la posesión.
+Tras rebalancear (posesión densa, pases moderados, \texttt{ALEJARSE}), el criterio estricto es aprendible.
+Con defensor estocástico y stun$=0$ (config adoptada), MC + $\varepsilon$ fijo alcanza $\approx 93\%$ de éxito estricto.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{fig_passing_curvas.png}
+    \caption{Pase~2v1---curvas de aprendizaje (stun$=0$). QL infla $G_0$ con muchos pases; el éxito estricto favorece a MC.}
+    \label{fig:pass-curvas}
+\end{figure}
+
+El \emph{stun} post-pase \textbf{no} está en el enunciado: era un colchón nuestro.
+Una ablación (3000 eps, MC/QL, $\varepsilon$ fijo) muestra que se puede \textbf{quitar} sin romper el aprendizaje; subir mucho la velocidad del defensor sí lo degrada.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Config.\ defensor & MC éxito & QL éxito \\
+\midrule
+stun$=3$ (histórico) & $97\%$ & $85\%$ \\
+stun$=1$ & $97\%$ & $90\%$ \\
+stun$=0$ (adoptado) & $93\%$ & $81\%$ \\
+stun$=0$, velocidad $+25\%$ & $77\%$ & $65\%$ \\
+stun$=0$, velocidad $+50\%$ & $76\%$ & $72\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Ablación de libertad del defensor (últimos 100 eps; seed~42). Adoptamos stun$=0$ con velocidad base $0.18{+}0.10U$.}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.88\textwidth]{fig_passing_ablation.png}
+    \caption{Passing---éxito vs libertad del defensor (MC/QL, 3000 eps).}
+    \label{fig:pass-ablation}
+\end{figure}
+
+Con stun$=0$ el rastro del defensor es mucho más largo; con stun$=3$ a menudo apenas se mueve (misma seed abajo).
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth}
+        \includegraphics[width=\linewidth]{fig_passing_ablation_stun3.png}
+        \caption*{stun$=3$ (disp.\ corta)}
+    \end{subfigure}\hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \includegraphics[width=\linewidth]{fig_passing_ablation_stun0.png}
+        \caption*{stun$=0$ (disp.\ larga)}
+    \end{subfigure}
+    \vspace{0.3em}
+    \begin{subfigure}[t]{0.48\textwidth}
+        \includegraphics[width=\linewidth]{fig_passing_tray.png}
+        \caption*{Canónica adoptada (stun$=0$)}
+    \end{subfigure}\hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \includegraphics[width=\linewidth]{set_passing_01.png}
+        \caption*{Variante stun$=0$}
+    \end{subfigure}
+    \caption{Pase---ablación visual del stun y trays con defensor libre (rastro rojo).}
+    \label{fig:pass-viz}
+\end{figure}
+
+\FloatBarrier
 \section{Conclusiones}
-Se cumplió el baseline tabular P1: MDP formal, discretización justificada, MC Control y Q-Learning, comparación $\varepsilon$ fijo vs.\ decreciente, y análisis de $G_0$, tasa de éxito y $\pi^*$. El mejor agente (Q-Learning) alcanza intercepción consistente. Próximos pasos (P2): DQN/PPO en estado continuo, reward shaping potencial (Ng et al., 1999) y despliegue competitivo o transferencia.
+Cumplimos la Fase~1: cuatro MDPs con discretización justificada, MC Control y Q-Learning, $\varepsilon$ fijo vs decay, curvas, $V^*$/$\pi^*$, trayectorias y umbrales del enunciado.
+
+\begin{itemize}
+    \item \textbf{Discretizar con criterio.} Bins polares anclados al kickable ($0.8$\,m) y a conos de dash/giro; cada tarea extiende esa base (meta, GK, compañero/defensor).
+    \item \textbf{Pipeline uniforme.} El mismo código de agentes/métricas sirve a las cuatro tareas si el contrato del env es homogéneo.
+    \item \textbf{Exploración importa.} En persecución, MC con $\varepsilon$ fijo no limpia timeouts en distancias largas; con decay sí. En tiro y pase, $\varepsilon$ fijo ayuda a seguir muestreando acciones útiles.
+    \item \textbf{No hay ganador único.} Persecución/drible (caminos largos, shaping denso) $\rightarrow$ \textbf{QL + $\varepsilon$ decay}.
+    Tiro (ruido, pocas decisiones) y pase ($R$ $\neq$ criterio del enunciado) $\rightarrow$ \textbf{MC + $\varepsilon$ fijo}: el retorno episódico y la exploración constante estiman mejor kicks/macros; QL infla $G_0$ localmente (p.\ ej.\ spamear pases) con peor éxito estricto.
+    El cuello de botella es la profundidad temporal o la alineación $R\leftrightarrow$ criterio.
+    \item \textbf{Shaping amarrado al enunciado.} En pase, premiar pases sin posesión densa falló; rediseñamos $R$ y, en ablación, quitamos el stun post-pase (colchón nuestro, no requisito del curso).
+    \item \textbf{Límite del proxy.} Sin visión ruidosa ni estamina; revalidar en \texttt{rcssserver}. Fase~2: DQN/PPO y jerarquías sobre estas skills.
+\end{itemize}
 
 \begin{thebibliography}{9}
 \bibitem{sutton}
